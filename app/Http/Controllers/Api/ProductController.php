@@ -26,9 +26,9 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validator = $request->validate([
-            "image" => ["required", "image"],
-            "description" => ["required", "string"],
-            "price" => ["required", "integer"]
+            "image" => ["required", "mimes:jpeg,jpg,png"],
+            "description" => ["required", "string", "max:255"],
+            "price" => ["required", "numeric"]
         ]);
 
         if ($request->file('image')) {
@@ -43,11 +43,11 @@ class ProductController extends Controller
 
         $product = Products::create([
             "image" => Storage::url($image),
-            "description"=> $request->description,
-            "price"=> $request->price
+            "description" => $request->description,
+            "price" => $request->price
         ]);
 
-        return ApiResponseClass::sendResponse($product, 'New product added successfully', 200);
+        return ApiResponseClass::sendResponse($product, 'New product added successfully', 201);
     }
 
     /**
@@ -57,11 +57,10 @@ class ProductController extends Controller
     {
         try {
             $product = Products::findOrFail($id);
-        } catch (\Throwable $th) {
-            if ($th instanceof ModelNotFoundException) {
-                return ApiResponseClass::sendResponse([], "Product with id $id not found", 404);
-            }
+        } catch (ModelNotFoundException $e) {
+            return ApiResponseClass::sendError('Product not found', 404);
         }
+
         return ApiResponseClass::sendResponse($product, '', 200);
     }
 
@@ -70,7 +69,28 @@ class ProductController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $validatedData = $request->validate([
+            "description" => ["string", "max:255"],
+            "price" => ["numeric"]
+        ]);
+
+        try {
+            $product = Products::findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            return ApiResponseClass::sendError('Product not found', 404);
+        }
+
+        $product->fill($validatedData);
+
+        try {
+            if ($product->isDirty()) {
+                $product->save();
+            }
+        } catch (\Exception $e) {
+            return ApiResponseClass::sendError('Error updating product', 500);
+        }
+
+        return ApiResponseClass::sendResponse($product, 'Product edited successfully', 200);
     }
 
     /**
