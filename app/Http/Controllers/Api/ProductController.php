@@ -98,6 +98,19 @@ class ProductController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            $product = Products::findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            return ApiResponseClass::sendError('Product not found', 404);
+        }
+
+        $imagePath = explode("/", $product->image);
+        $imageName = end($imagePath);
+
+        Storage::disk("public")->delete("images/$imageName");
+
+        $product->delete();
+
+        return response()->noContent();
     }
 }
